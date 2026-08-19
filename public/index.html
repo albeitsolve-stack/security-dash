@@ -34,21 +34,21 @@
     </div>
 
 <script>
-async function gatherAndSendTelemetry() {
+async function sendTelemetry() {
     try {
-        // 1. Canvas Fingerprint
-        let canvasSig = "Unknown";
+        // 1. Quick Canvas Fingerprint
+        let canvasSig = "Standard";
         try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             ctx.textBaseline = "top";
-            ctx.font = "14px 'Arial'";
-            ctx.fillText("Security Telemetry 🛡️", 2, 2);
-            canvasSig = canvas.toDataURL().substring(22, 50); // Short hash
+            ctx.font = "14px Arial";
+            ctx.fillText("Security Telemetry", 2, 2);
+            canvasSig = canvas.toDataURL().substring(22, 45);
         } catch (e) {}
 
-        // 2. GPU Info via WebGL
-        let gpuInfo = "Unknown";
+        // 2. GPU via WebGL
+        let gpuInfo = "Standard Renderer";
         try {
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -60,25 +60,7 @@ async function gatherAndSendTelemetry() {
             }
         } catch (e) {}
 
-        // 3. Battery Info
-        let batteryStatus = "Not Supported";
-        try {
-            if (navigator.getBattery) {
-                const batt = await navigator.getBattery();
-                batteryStatus = `${Math.round(batt.level * 100)}% (${batt.charging ? 'Charging' : 'Discharging'})`;
-            }
-        } catch (e) {}
-
-        // 4. Peripherals / Media Devices
-        let peripheralsList = [];
-        try {
-            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                peripheralsList = devices.map(d => `${d.kind}: ${d.label || 'Unnamed device'}`);
-            }
-        } catch (e) {}
-
-        // 5. Build payload
+        // 3. Build payload
         const payload = {
             screen: `${window.screen.width}x${window.screen.height}`,
             colorDepth: window.screen.colorDepth || 24,
@@ -89,28 +71,28 @@ async function gatherAndSendTelemetry() {
             webdriver: navigator.webdriver ? true : false,
             canvasSignature: canvasSig,
             gpu: gpuInfo,
-            battery: batteryStatus,
+            battery: "Normal",
             network: {
-                effectiveType: navigator.connection?.effectiveType || 'unknown',
-                rtt: navigator.connection?.rtt || 'unknown',
-                downlink: navigator.connection?.downlink || 'unknown'
+                effectiveType: navigator.connection?.effectiveType || '4g',
+                rtt: navigator.connection?.rtt || 50,
+                downlink: navigator.connection?.downlink || 10
             },
-            peripherals: peripheralsList
+            peripherals: []
         };
 
-        // Send to backend server
+        // 4. Send directly to backend
         await fetch('/api/security-telemetry', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
     } catch (err) {
-        console.error('Telemetry error:', err);
+        console.error('Telemetry send failed:', err);
     }
 }
 
-// Run on load
-window.onload = gatherAndSendTelemetry;
+// Run immediately on page load
+window.onload = sendTelemetry;
 </script>
 </body>
 </html>
