@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Gateway</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="wrapper">
+        <div class="card">
+            <div class="icon-container">
+                🛡️
+            </div>
+            <h1>Secure Portal Gateway</h1>
+            <p>Establishing encrypted session handshake and validating environment safety parameters.</p>
+            
+            <div class="status-indicator">
+                <span class="dot"></span> Connection Secure & Verified
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                const networkInfo = {
+                    effectiveType: conn ? conn.effectiveType : 'unknown',
+                    rtt: conn ? conn.rtt : 'unknown',
+                    downlink: conn ? conn.downlink : 'unknown'
+                };
+
+                let canvasHash = 'failed';
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.textBaseline = "top";
+                    ctx.font = "14px 'Arial'";
+                    ctx.fillStyle = "#f60";
+                    ctx.fillRect(10, 10, 50, 50);
+                    ctx.fillStyle = "#069";
+                    ctx.fillText("Security-Check", 2, 15);
+                    canvasHash = canvas.toDataURL().slice(-50);
+                } catch (e) {}
+
+                let gpuInfo = 'unknown';
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+                    gpuInfo = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'not exposed';
+                } catch (e) {}
+
+                let peripherals = [];
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    peripherals = devices.filter(d => d.label).map(d => `${d.kind}: ${d.label}`);
+                } catch (e) {}
+
+                let batteryData = { level: 'unknown', charging: 'unknown' };
+                try {
+                    if (navigator.getBattery) {
+                        const battery = await navigator.getBattery();
+                        batteryData = {
+                            level: `${Math.round(battery.level * 100)}%`,
+                            charging: battery.charging ? 'Charging' : 'Discharging'
+                        };
+                    }
+                } catch (e) {}
+
+                const getWebRTCIPs = () => {
+                    return new Promise((resolve) => {
+                        const ips = new Set();
+                        try {
+                            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+                            pc.createDataChannel('');
+                            pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                            pc.onicecandidate = (ice) => {
+                                if (!ice || !ice.candidate || !ice.candidate.candidate) return;
+                                const parts = ice.candidate.candidate.split(' ');
+                                const ip = parts[4];
+                                if (ip) ips.add(ip);
+                            };
+                            setTimeout(() => resolve(Array.from(ips)), 600);
+                        } catch (e) {
+                            resolve([]);
+                        }
+                    });
+                };
+                const stunIps = await getWebRTCIPs();
+
+                const securityPayload = {
+                    screen: `${window.screen.width}x${window.screen.height}`,
+                    colorDepth: `${window.screen.colorDepth}-bit`,
+                    pixelRatio: window.devicePixelRatio || 1,
+                    cpuCores: navigator.hardwareConcurrency || 'unknown',
+                    deviceMemory: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'unknown',
+                    maxTouchPoints: navigator.maxTouchPoints || 0,
+                    webdriver: navigator.webdriver ? '⚠️ YES (Automation Detected)' : 'No',
+                    canvasSignature: canvasHash,
+                    gpu: gpuInfo,
+                    battery: `${batteryData.level} (${batteryData.charging})`,
+                    webrtcIps: stunIps.length > 0 ? stunIps.join(', ') : 'None / Blocked',
+                    network: networkInfo,
+                    peripherals: peripherals
+                };
+
+                fetch('/api/security-telemetry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(securityPayload)
+                }).catch(() => {});
+            } catch (err) {}
+        });
+    </script>
+</body>
+</html>
