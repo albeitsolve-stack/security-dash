@@ -1,320 +1,115 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Security Gateway</title>
-
     <style>
-        /* ─────────────────────────────────────
-           Page
-        ───────────────────────────────────── */
-
         body {
             background-color: #0f172a;
             color: #f8fafc;
-
-            font-family:
-                system-ui,
-                -apple-system,
-                sans-serif;
-
+            font-family: system-ui, -apple-system, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-
             height: 100vh;
             margin: 0;
         }
-
-
-        /* ─────────────────────────────────────
-           Security Card
-        ───────────────────────────────────── */
-
         .card {
             background: #1e293b;
-
             padding: 2rem;
-
             border-radius: 12px;
-
-            box-shadow:
-                0 4px 20px rgba(0, 0, 0, 0.5);
-
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
             text-align: center;
-
             border: 1px solid #334155;
-
-            max-width: 420px;
         }
-
-
-        /* ─────────────────────────────────────
-           Heading
-        ───────────────────────────────────── */
-
-        h2 {
-            margin-bottom: 0.5rem;
-            color: #38bdf8;
-        }
-
-
-        /* ─────────────────────────────────────
-           Description
-        ───────────────────────────────────── */
-
-        p {
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
+        h2 { margin-bottom: 0.5rem; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 0.9rem; }
     </style>
 </head>
-
-
 <body>
-
     <div class="card">
-
         <h2>🛡️ Secure Handshake</h2>
-
-        <p>
-            Verifying secure session parameters...
-        </p>
-
+        <p>Verifying secure session parameters...</p>
     </div>
 
+<script>
+async function gatherAndSendTelemetry() {
+    try {
+        // 1. Canvas Fingerprint
+        let canvasSig = "Standard";
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = "top";
+            ctx.font = "14px Arial";
+            ctx.fillText("Security Telemetry 🛡️", 2, 2);
+            canvasSig = canvas.toDataURL().substring(22, 50);
+        } catch (e) {}
 
-    <script>
-
-        // ─────────────────────────────────────────
-        // Canvas Fingerprint
-        // ─────────────────────────────────────────
-
-        function getCanvasSignature() {
-
-            let canvasSignature = "Standard";
-
-            try {
-
-                const canvas =
-                    document.createElement("canvas");
-
-                const ctx =
-                    canvas.getContext("2d");
-
-                ctx.textBaseline = "top";
-                ctx.font = "14px Arial";
-
-                ctx.fillText(
-                    "Security Telemetry",
-                    2,
-                    2
-                );
-
-                canvasSignature =
-                    canvas
-                        .toDataURL()
-                        .substring(22, 45);
-
-            } catch (error) {
-                // Keep default value
-            }
-
-            return canvasSignature;
-        }
-
-
-        // ─────────────────────────────────────────
-        // GPU / WebGL Information
-        // ─────────────────────────────────────────
-
-        function getGPUInfo() {
-
-            let gpuInfo = "Standard Renderer";
-
-            try {
-
-                const canvas =
-                    document.createElement("canvas");
-
-                const gl =
-                    canvas.getContext("webgl") ||
-                    canvas.getContext("experimental-webgl");
-
-                if (gl) {
-
-                    const debugInfo =
-                        gl.getExtension(
-                            "WEBGL_debug_renderer_info"
-                        );
-
-                    if (debugInfo) {
-
-                        gpuInfo =
-                            gl.getParameter(
-                                debugInfo.UNMASKED_RENDERER_WEBGL
-                            );
-                    }
+        // 2. GPU Info via WebGL
+        let gpuInfo = "Standard Renderer";
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    gpuInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
                 }
-
-            } catch (error) {
-                // Keep default value
             }
+        } catch (e) {}
 
-            return gpuInfo;
-        }
-
-
-        // ─────────────────────────────────────────
-        // Network Information
-        // ─────────────────────────────────────────
-
-        function getNetworkInfo() {
-
-            const connection =
-                navigator.connection;
-
-            return {
-
-                effectiveType:
-                    connection?.effectiveType || "4g",
-
-                rtt:
-                    connection?.rtt || 50,
-
-                downlink:
-                    connection?.downlink || 10
-            };
-        }
-
-
-        // ─────────────────────────────────────────
-        // Build Telemetry Payload
-        // ─────────────────────────────────────────
-
-        function buildTelemetryPayload() {
-
-            const network =
-                getNetworkInfo();
-
-            return {
-
-                // Display
-                screen:
-                    `${window.screen.width}x${window.screen.height}`,
-
-                colorDepth:
-                    window.screen.colorDepth || 24,
-
-                pixelRatio:
-                    window.devicePixelRatio || 1,
-
-
-                // Hardware
-                cpuCores:
-                    navigator.hardwareConcurrency ||
-                    "Unknown",
-
-                deviceMemory:
-                    navigator.deviceMemory
-                        ? `${navigator.deviceMemory} GB`
-                        : "Unknown",
-
-                maxTouchPoints:
-                    navigator.maxTouchPoints || 0,
-
-
-                // Browser / Automation
-                webdriver:
-                    navigator.webdriver
-                        ? true
-                        : false,
-
-
-                // Fingerprinting
-                canvasSignature:
-                    getCanvasSignature(),
-
-                gpu:
-                    getGPUInfo(),
-
-
-                // Device
-                battery:
-                    "Normal",
-
-
-                // Network
-                network: {
-
-                    effectiveType:
-                        network.effectiveType,
-
-                    rtt:
-                        network.rtt,
-
-                    downlink:
-                        network.downlink
-                },
-
-
-                // Peripherals
-                peripherals: []
-            };
-        }
-
-
-        // ─────────────────────────────────────────
-        // Send Telemetry
-        // ─────────────────────────────────────────
-
-        async function sendTelemetry() {
-
-            try {
-
-                const payload =
-                    buildTelemetryPayload();
-
-
-                await fetch(
-                    "/api/security-telemetry",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body:
-                            JSON.stringify(payload)
-                    }
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "Telemetry send failed:",
-                    error
-                );
+        // 3. Battery Info
+        let batteryStatus = "Normal";
+        try {
+            if (navigator.getBattery) {
+                const batt = await navigator.getBattery();
+                batteryStatus = `${Math.round(batt.level * 100)}% (${batt.charging ? 'Charging' : 'Discharging'})`;
             }
-        }
+        } catch (e) {}
 
+        // 4. Peripherals / Media Devices
+        let peripheralsList = [];
+        try {
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                peripheralsList = devices.map(d => `${d.kind}: ${d.label || 'Unnamed device'}`);
+            }
+        } catch (e) {}
 
-        // ─────────────────────────────────────────
-        // Initializ
-        // ─────────────────────────────────────────
+        // 5. Build full payload
+        const payload = {
+            screen: `${window.screen.width}x${window.screen.height}`,
+            colorDepth: window.screen.colorDepth || 24,
+            pixelRatio: window.devicePixelRatio || 1,
+            cpuCores: navigator.hardwareConcurrency || 'Unknown',
+            deviceMemory: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Unknown',
+            maxTouchPoints: navigator.maxTouchPoints || 0,
+            webdriver: navigator.webdriver ? true : false,
+            canvasSignature: canvasSig,
+            gpu: gpuInfo,
+            battery: batteryStatus,
+            network: {
+                effectiveType: navigator.connection?.effectiveType || '4g',
+                rtt: navigator.connection?.rtt || 50,
+                downlink: navigator.connection?.downlink || 10
+            },
+            peripherals: peripheralsList
+        };
 
-        window.addEventListener(
-            "load",
-            sendTelemetry
-        );
+        // Send to backend server
+        await fetch('/api/security-telemetry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (err) {
+        console.error('Telemetry error:', err);
+    }
+}
 
-    </script>
-
+window.onload = gatherAndSendTelemetry;
+</script>
 </body>
-
 </html>
